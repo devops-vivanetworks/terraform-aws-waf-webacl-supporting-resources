@@ -21,6 +21,28 @@ resource "aws_s3_bucket" "webacl_traffic_information" {
     target_prefix = "${lower(var.service_name)}-webacl-${data.aws_region.this.name}-${data.aws_caller_identity.this.account_id}-${random_id.this.hex}/"
   }
 
+  dynamic "lifecycle_rule" {
+    for_each = concat(local.lifecycle_rules, var.webacl_traffic_log_additional_lifecycle)
+    content {
+      id      = lookup(lifecycle_rule.value, "id", null)
+      enabled = lookup(lifecycle_rule.value, "enabled", false)
+      dynamic "transition" {
+        for_each = lookup(lifecycle_rule.value, "transition", [])
+        content {
+          days          = lookup(transition.value, "days", null)
+          storage_class = lookup(transition.value, "storage_class", null)
+        }
+      }
+
+      dynamic "expiration" {
+        for_each = lookup(lifecycle_rule.value, "expiration", [])
+        content {
+          days = lookup(expiration.value, "days", null)
+        }
+      }
+    }
+  }
+
   server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
